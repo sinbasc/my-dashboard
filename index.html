@@ -78,24 +78,78 @@
         const container = document.getElementById('contentList');
         container.innerHTML = "";
         
-        feedItems.forEach((item, index) => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.onclick = () => toggleDetails(index);
+        // Group items by source
+        const groups = {};
+        feedItems.forEach(item => {
+            if (!groups[item.source]) groups[item.source] = [];
+            groups[item.source].push(item);
+        });
+        
+        // Sort each group by date descending (newest first)
+        for (let source in groups) {
+            groups[source].sort((a, b) => new Date(b.date_added || 0) - new Date(a.date_added || 0));
+        }
+        
+        let globalIndex = 0;
+        
+        for (let source in groups) {
+            const items = groups[source];
+            const latest = items[0];
+            const history = items.slice(1);
             
-            card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3>${item.title}</h3>
-                    <span class="badge">${item.source}</span>
-                </div>
-                <p style="color: #94a3b8; font-style: italic; margin: 5px 0;">${item.short_summary}</p>
-                <div id="details-${index}" class="details">
-                    <strong>Deep Technical In-Depth Summary Breakdown:</strong>
-                    <p>${item.in_depth_summary}</p>
+            const groupDiv = document.createElement('div');
+            groupDiv.style.marginBottom = "30px";
+            
+            globalIndex++;
+            let html = `
+                <div class="card" onclick="toggleDetails(${globalIndex})">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin:0;">${latest.title} <span style="font-size:14px; color:#94a3b8; font-weight:normal;">(${latest.date_added || 'Latest'})</span></h3>
+                        <span class="badge">${latest.source}</span>
+                    </div>
+                    <p style="color: #94a3b8; font-style: italic; margin: 10px 0 5px 0;">${latest.short_summary}</p>
+                    <div id="details-${globalIndex}" class="details">
+                        <strong>Deep Technical In-Depth Summary Breakdown:</strong>
+                        <p>${latest.in_depth_summary}</p>
+                    </div>
                 </div>
             `;
-            container.appendChild(card);
-        });
+            
+            if (history.length > 0) {
+                const historyId = `history-${globalIndex}`;
+                html += `
+                    <div style="margin-top: 5px; margin-left: 20px;">
+                        <button style="background:transparent; color:#94a3b8; padding:0; font-size:14px; text-decoration:underline;" onclick="toggleHistory('${historyId}')">View Previous Summaries (${history.length})</button>
+                        <div id="${historyId}" style="display:none; margin-top: 15px; border-left: 2px solid #334155; padding-left: 15px;">
+                `;
+                
+                history.forEach(oldItem => {
+                    globalIndex++;
+                    html += `
+                        <div class="card" style="transform: scale(0.95); margin-bottom: 10px; border-left: 3px solid #64748b;" onclick="toggleDetails(${globalIndex})">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4 style="margin:0; color:#cbd5e1;">${oldItem.title} <span style="font-size:12px; color:#64748b; font-weight:normal;">(${oldItem.date_added || 'Older'})</span></h4>
+                            </div>
+                            <p style="color: #64748b; font-style: italic; margin: 8px 0 0 0;">${oldItem.short_summary}</p>
+                            <div id="details-${globalIndex}" class="details">
+                                <p style="color:#94a3b8;">${oldItem.in_depth_summary}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+            
+            groupDiv.innerHTML = html;
+            container.appendChild(groupDiv);
+        }
+    }
+
+    function toggleHistory(id) {
+        const block = document.getElementById(id);
+        const currentStyle = window.getComputedStyle(block).display;
+        block.style.display = currentStyle === 'none' ? 'block' : 'none';
     }
 
     function toggleDetails(index) {
